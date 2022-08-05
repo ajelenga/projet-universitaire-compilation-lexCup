@@ -1,0 +1,460 @@
+import java_cup.runtime.*;
+import java.io.*; 
+import java.util.*;
+import java.util.HashMap;
+
+parser code {:
+	public static void main(String args[]) throws Exception{
+	System.out.println("----------------------------------------");
+	System.out.println("  DEMARRAGE DU PROGRAMME CALCULATRICE! "); 
+	System.out.println("----------------------------------------");
+	new parser(new Yylex(new InputStreamReader(System.in))).parse();
+		
+	}
+:}
+
+action code {:
+	int somme=0;
+	int compteur=0;
+	public HashMap <String, Object> tableauPrint = new HashMap <String, Object>();
+:}
+
+
+terminal PARENOUV,PARENFER,SAUT;
+terminal Integer ENTIER;
+terminal String BOOLEEN, PLUS, MULT, INFERIEUR, EGALITE, NEGATION, OPERAET, OPERAOU, LETTRE, EGALE, AROBASE, AFFICHAGE;
+non terminal prog, lignes, exprbool;
+non terminal Integer expr;
+
+precedence left PLUS;
+precedence left MULT;
+precedence left OPERAET, NEGATION, OPERAOU;
+precedence left INFERIEUR, EGALITE; 
+
+prog ::= 	lignes SAUT prog 
+			| {: 
+				System.out.println("");
+				System.out.println("----------------------------------------");
+				System.out.println("               Au Revoir                "); 
+				System.out.println("----------------------------------------"); 
+			:};
+	 
+lignes ::=  
+			/* Affichage du calcul mathématique PLUS MULT */
+			expr:e  
+			{: 	
+				if(e!=null){
+				System.out.println("");
+				System.out.println(" - :  entier " +e);} 	
+			:}
+			
+			/* Affichage du calcul booléen */
+			|exprbool:e  
+			{: 	
+				if(e!=null){
+				System.out.println("");
+				System.out.println(" - :  booleen " +e);} 	
+			:}
+			
+			/* Affectation d'une variable a un entier.*/		
+			| LETTRE:a EGALE ENTIER:b
+			{:
+				System.out.println("");
+				System.out.println(" "+a + " : "+ "entier " +b); 
+				tableauPrint.put(a, " = entier " +b);
+			:}
+				
+			
+			/* Affectation d'une variable @a un calcul booléen */		
+			| AROBASE LETTRE:a EGALE exprbool:b
+			{:
+				System.out.println("");
+				System.out.println(" @"+a + " : "+ "booleen " +b); 
+				tableauPrint.put("@"+a, " = booleen " +b);
+			:}
+			
+			
+			/* Erreur affectation d'une variable booléen avec un entier */	
+			| LETTRE:a EGALE BOOLEEN:b
+			{:
+				System.out.println("");
+				System.out.println("  expressions syntaxiques incorrectes " +"\""+a +"\"" +" doit être précéder de @");
+			:}
+			
+			/* Erreur affectation d'une variable booléen avec un entier*/	
+			| AROBASE LETTRE:a PLUS ENTIER:b
+			{:
+				System.out.println("");
+				System.out.println("  erreur de type sur l'opérateur +");
+			:}
+			
+			/* Erreur addition variable d'une variable booléen avec un entier	
+			| ENTIER:b PLUS AROBASE LETTRE:a 
+			{:
+				System.out.println("");
+				System.out.println("  erreur de type sur l'opérateur +");
+			:}
+			*/
+			
+			/*Erreur addition variable d'un entier avec une variable booléen*/	
+			| AROBASE LETTRE:a MULT ENTIER:b
+			{:
+				System.out.println("");
+				System.out.println("  erreur de type sur l'opérateur +");
+			:}
+			
+			/* Erreur multiplication d'une variable booléen avec un entier 	
+			|  ENTIER:b MULT AROBASE LETTRE:a 
+			{:
+				System.out.println("");
+				System.out.println("  erreur de type sur l'opérateur +");
+			:}
+			*/
+			
+			/* PRINT des variables affectés */
+			| AFFICHAGE
+			{:
+				System.out.println("");
+				System.out.println(" les valeurs des variables sont: ");
+				for (Object i : tableauPrint.keySet()) {
+						System.out.println( " "+i + tableauPrint.get(i));
+				}
+			:}
+			|
+			;
+
+expr ::=        ENTIER:e
+	        {: 
+		        RESULT= e ;  
+	        :}
+	     
+	        /* Addition entre deux entiers */
+			| expr:e1 PLUS expr:e2     
+			{: 
+				try{ RESULT= e1+e2; }
+				catch(Exception e){}	
+			:}
+	     
+			/* Multiplication entre deux entiers */					 
+			| expr:e1 MULT expr:e2     
+			{: 
+				try{ RESULT= e1*e2; }
+				catch(Exception e){} 
+			:}
+		
+			/* Multiplication avec lettre sinon il y'a une erreur sémantique */
+			| expr:e1 MULT LETTRE:e2     
+			{: 
+				if(tableauPrint.containsKey(e2))
+				{
+					String ly = tableauPrint.get(e2).toString();
+					String str1 [] = ly.split(" ");
+					RESULT=Integer.parseInt(str1[3])*e1;
+				}
+				else{
+					System.out.println("");
+					System.out.println(" erreur sémantique : identificateur inconnu : "+e2);
+					System.out.println("");
+				}
+	        :}
+	          
+	        /* Multiplication avec une lettre affectée sinon erreur sémantique */
+	        |  LETTRE:e2 MULT expr:e1     
+	          {: 
+	          	if(tableauPrint.containsKey(e2)){
+				String ly = tableauPrint.get(e2).toString();
+				String str1 [] = ly.split(" ");
+				RESULT=Integer.parseInt(str1[3])*e1;
+			}
+			else{
+		     		System.out.println("");
+				System.out.println(" erreur sémantique : identificateur inconnu : "+e2);
+				System.out.println("");
+			}
+	          :}
+	          
+	          /* Addition avec lettre affectée il y'a une erreur sémantique */
+		   	| expr:e1 PLUS LETTRE:e2     
+		   	{: 
+				if(tableauPrint.containsKey(e2)){
+					String ly = tableauPrint.get(e2).toString();
+					String str1 [] = ly.split(" ");
+					RESULT=Integer.parseInt(str1[3])+e1;
+				}
+				else{
+						System.out.println("");
+					System.out.println(" erreur sémantique : identificateur inconnu : "+e2);
+				}
+		   :}
+		   
+		   
+			/* Affichage : addition deux variable affecté préalablement et erreur si les variables ne le sont pas (a + b)  */
+			| LETTRE:l PLUS LETTRE:m 
+			{:
+				if(tableauPrint.containsKey(l) && tableauPrint.containsKey(m)){
+					String lx = tableauPrint.get(l).toString();
+					String str [] = lx.split(" ");
+					String ly = tableauPrint.get(m).toString();
+					String str1 [] = ly.split(" ");
+					RESULT=Integer.parseInt(str[3])+Integer.parseInt(str1[3]);
+				}
+				else{
+					System.out.println("");
+					System.out.println(" erreur de type sur l'opérateur + et une des lettre "+l +" ou " +m +" n'a pas de valeur affectée");
+					
+				} 
+			:}
+			
+			/* Affichage : addition deux variable affecté préalablement (a + entier) et erreur si les variables ne le sont pas*/
+			| LETTRE:l PLUS ENTIER:m 
+			{:
+				if(tableauPrint.containsKey(l)){
+					String lx = tableauPrint.get(l).toString();
+					String str [] = lx.split(" ");
+					RESULT=Integer.parseInt(str[3])+m;
+				}
+				else{
+					System.out.println("");
+					System.out.println(" erreur de type sur l'opérateur + avec un entier et la lettre "+l +" n'a pas été affectée");
+				} 
+			:};
+
+exprbool::=	   BOOLEEN:e
+		    {: 
+		        RESULT= e ;  
+	        :}
+	           
+	        // Expression en parenthèse
+			| PARENOUV exprbool:e PARENFER  
+			{: 
+			RESULT= e ;  
+			:}
+	          
+	           
+			// Expression de comparaison inférieure entre deux entiers
+			| expr:e1 INFERIEUR expr:e2  
+			{: 
+				if(e1<e2)
+				{
+					RESULT="vrai";
+					}
+				else {
+					RESULT="faux";
+				}  
+			:}
+			
+			// Expression de comparaison inférieur avec lettre et expr calcul et affichage si la l n'est pas affectée
+			| LETTRE:e1 INFERIEUR expr:e2  
+			{: 
+				if(tableauPrint.containsKey(e1)){
+				String lx = tableauPrint.get(e1).toString();
+				String str [] = lx.split(" ");
+				int t = Integer.parseInt(str[3]);
+				if(t<e2)
+				{RESULT="vrai";}
+				else {RESULT="faux";}
+				}  
+				else{
+					System.out.println("");
+					System.out.println(" erreur de type sur l'opérateur de comparaison '<' et la" +e1 +" lettre n'a pas de valeur affectée");
+					
+				}     
+	        :}
+	           
+			// Expression comparaison égalité entre deux entiers
+			| expr:e1 EGALITE expr:e2  
+			{: 
+				if(e1==e2){
+					RESULT="vrai";
+				}
+				else {
+				RESULT="faux";
+				}  
+			:}
+	           
+	        /* Affectation d'une variable booléen affectée à une autre et erreur si celle-ci elle-même ne l'est pas */		
+		    | AROBASE LETTRE:a EGALE AROBASE LETTRE:b
+		    {:
+				if(tableauPrint.containsKey("@"+b)){
+					String lx = tableauPrint.get("@"+b).toString();
+					String str1 [] = lx.split(" ");
+					System.out.println("");
+					System.out.println(" @"+a + " : "+ "booleen " +str1[3]); 
+					tableauPrint.put("@"+a, " = booleen " +str1[3]);
+					RESULT=str1[3];
+					
+				}
+				else{
+					System.out.println("");
+					System.out.println(" erreur de type sur l'opérateur '=' et la lettre "+b +" n'a pas de valeur booleen affectée");
+					
+				} 	
+		   :}
+		   
+		   
+			// Expression booléen comparaison égalité
+			| exprbool:e1 EGALITE exprbool:e2  
+			{: 
+				if(e1==e2){
+					RESULT="vrai";
+				}
+				else {
+					RESULT="faux";
+				}  
+			:}
+	           
+		   /* Opérateur et entre deux booléens */
+			| exprbool:e1 OPERAET exprbool:e2     
+			{: 
+				if(e1.equals("vrai") && e2.equals("vrai")){RESULT="vrai";}
+				if(e1.equals("vrai") && e2.equals("faux")){RESULT="faux";}
+				if(e1.equals("faux") && e2.equals("vrai")){RESULT="faux";}
+				if(e1.equals("faux") && e2.equals("faux")){RESULT="faux";}		     	
+			:}
+	           
+	        /* Calcul opérateur "et" de deux variables booléen affectées et erreur si une des lettres n'a pas de valeur booléen affectée */		
+		    | AROBASE LETTRE:a OPERAET AROBASE LETTRE:b
+		    {:
+			if(tableauPrint.containsKey("@"+a) && tableauPrint.containsKey("@"+b)){
+				String lx = tableauPrint.get("@"+a).toString();
+				String str [] = lx.split(" ");
+				String ly = tableauPrint.get("@"+b).toString();
+				String str1 [] = ly.split(" ");
+				if(str1[3].equals("vrai") && str[3].equals("vrai")){RESULT="vrai";}
+			   	if(str1[3].equals("vrai") && str[3].equals("faux")){RESULT="faux";}
+			   	if(str1[3].equals("faux") && str[3].equals("vrai")){RESULT="faux";}
+			   	if(str1[3].equals("faux") && str[3].equals("faux")){RESULT="faux";}
+			}
+			else{
+				System.out.println("");
+				System.out.println(" erreur de type sur l'opérateur 'et' et une des lettre "+a +" ou "+b +" n'a pas de valeur booleen affectée");
+				
+			}		
+			
+		   :}
+		   
+		   /* Calcul opérateur "et" d'une variable booléen affectée et un booléen et erreur si la lettre n'a pas de valeur booléen affectée*/		
+		    | AROBASE LETTRE:a OPERAET exprbool:e2
+		    {:
+			if(tableauPrint.containsKey("@"+a)){
+				String lx = tableauPrint.get("@"+a).toString();
+				String str [] = lx.split(" ");
+				if(str[3].equals("vrai") && e2.equals("vrai")){RESULT="vrai";}
+			   	if(str[3].equals("vrai") && e2.equals("faux")){RESULT="faux";}
+			   	if(str[3].equals("faux") && e2.equals("vrai")){RESULT="faux";}
+			   	if(str[3].equals("faux") && e2.equals("faux")){RESULT="faux";}
+			}
+			else{
+				System.out.println("");
+				System.out.println(" erreur de type sur l'opérateur 'et' et la lettre "+a +" n'a pas de valeur booleen affectée");
+				
+			}		
+			
+		   :}
+		   /* Calcul opérateur "et" d'une variable booléen affectée et un booléen et erreur si une lettre n'a pas de valeur booléen affectée */		
+		    | exprbool:e2 OPERAET AROBASE LETTRE:a  
+		    {:
+			if(tableauPrint.containsKey("@"+a)){
+				String lx = tableauPrint.get("@"+a).toString();
+				String str [] = lx.split(" ");
+				if(str[3].equals("vrai") && e2.equals("vrai")){RESULT="vrai";}
+			   	if(str[3].equals("vrai") && e2.equals("faux")){RESULT="faux";}
+			   	if(str[3].equals("faux") && e2.equals("vrai")){RESULT="faux";}
+			   	if(str[3].equals("faux") && e2.equals("faux")){RESULT="faux";}
+			}
+			else{
+				System.out.println("");
+				System.out.println(" erreur de type sur l'opérateur 'et' et la lettre "+a +" n'a pas de valeur booleen affectée");
+				
+			}		
+			
+		   :}
+	           
+	           /* Opérateur ou avec deux booléen */
+	           | exprbool:e1 OPERAOU exprbool:e2     
+	           {: 
+	           	if(e1.equals("vrai") && e2.equals("vrai")){RESULT="vrai";}
+	           	if(e1.equals("vrai") && e2.equals("faux")){RESULT="vrai";}
+	           	if(e1.equals("faux") && e2.equals("vrai")){RESULT="vrai";}
+	           	if(e1.equals("faux") && e2.equals("faux")){RESULT="faux";}		     	
+	           :}
+	           
+	           /* Calcul opérateur "ou" d'une variable @a avec un variable @a booléen et erreur si une des lettres n'a pas de valeur booléen affectée */		
+		    | AROBASE LETTRE:a OPERAOU AROBASE LETTRE:b
+		    {:
+			if(tableauPrint.containsKey("@"+a) && tableauPrint.containsKey("@"+b)){
+				String lx = tableauPrint.get("@"+a).toString();
+				String str [] = lx.split(" ");
+				String ly = tableauPrint.get("@"+b).toString();
+				String str1 [] = ly.split(" ");
+				if(str1[3].equals("vrai") && str[3].equals("vrai")){RESULT="vrai";}
+			   	if(str1[3].equals("vrai") && str[3].equals("faux")){RESULT="vrai";}
+			   	if(str1[3].equals("faux") && str[3].equals("vrai")){RESULT="vrai";}
+			   	if(str1[3].equals("faux") && str[3].equals("faux")){RESULT="faux";}
+			}
+			else{
+				System.out.println("");
+				System.out.println(" erreur de type sur l'opérateur 'ou' et une des lettre "+a +" ou "+b +" n'a pas de valeur booleen affectée");
+				
+			}		
+		   :}
+		   
+		   /* Calcul opérateur "ou" d'une variable @a avec booléen et erreur si une lettre n'a pas de valeur booléen affectée */		
+		    | AROBASE LETTRE:a OPERAOU exprbool:e2
+		    {:
+			if(tableauPrint.containsKey("@"+a)){
+				String lx = tableauPrint.get("@"+a).toString();
+				String str [] = lx.split(" ");
+				if(str[3].equals("vrai") && e2.equals("vrai")){RESULT="vrai";}
+			   	if(str[3].equals("vrai") && e2.equals("faux")){RESULT="vrai";}
+			   	if(str[3].equals("faux") && e2.equals("vrai")){RESULT="vrai";}
+			   	if(str[3].equals("faux") && e2.equals("faux")){RESULT="faux";}
+			}
+			else{
+				System.out.println("");
+				System.out.println(" erreur de type sur l'opérateur 'ou' et la lettre "+a +" n'a pas de valeur booleen affectée");
+				
+			}		
+			
+		   :}
+		   
+		   /* Calcul opérateur "ou" booléen avec une variable et erreur et erreur si une lettre n'a pas de valeur booléen affectée */		
+		    | exprbool:e2 OPERAOU AROBASE LETTRE:a  
+		    {:
+			if(tableauPrint.containsKey("@"+a)){
+				String lx = tableauPrint.get("@"+a).toString();
+				String str [] = lx.split(" ");
+				if(str[3].equals("vrai") && e2.equals("vrai")){RESULT="vrai";}
+			   	if(str[3].equals("vrai") && e2.equals("faux")){RESULT="vrai";}
+			   	if(str[3].equals("faux") && e2.equals("vrai")){RESULT="vrai";}
+			   	if(str[3].equals("faux") && e2.equals("faux")){RESULT="faux";}
+			}
+			else{
+				System.out.println("");
+				System.out.println(" erreur de type sur l'opérateur 'ou' et la lettre "+a +" n'a pas de valeur booleen affectée");
+				
+			}		
+		   :}
+	           
+	           /* Négation d'un booléen */
+	           | NEGATION exprbool:e1     
+	           {: 
+	           	if(e1.equals("vrai")) {RESULT="faux";}
+	           	if(e1.equals("faux")) {RESULT="vrai";}		     	
+	           :}
+	           
+	            /* Négation d'une variable booléen affectée et erreur et erreur si une lettre n'a pas de valeur booléen affectée */		
+		    | NEGATION AROBASE LETTRE:a  
+		    {:
+			if(tableauPrint.containsKey("@"+a)){
+				String lx = tableauPrint.get("@"+a).toString();
+				String str [] = lx.split(" ");
+				if(str[3].equals("vrai")) {RESULT="faux";}
+	           		if(str[3].equals("faux")) {RESULT="vrai";}
+			}
+			else{
+				System.out.println("");
+				System.out.println(" erreur de type sur l'opérateur 'negation non' et la lettre "+a +" n'a pas de valeur booleen affectée");
+				
+			}		
+		   :};
